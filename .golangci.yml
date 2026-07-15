@@ -1,0 +1,32 @@
+# golangci-lint configuration — envonce
+# Docs: https://golangci-lint.run/usage/configuration/
+#
+# Enabling a focused set of low-noise, high-value linters. The default
+# `errcheck` rule flags return values of fmt.Fprint* writes to stdout/stderr
+# and `defer Close()` — these are standard, intentionally-ignored errors in a
+# CLI, so they are excluded here rather than cluttering the code with `_ =`.
+
+version: "2"
+
+run:
+  timeout: "3m"
+
+linters:
+  default: none
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+  settings:
+    errcheck:
+      exclude-functions:
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+        - (*os.File).Close
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

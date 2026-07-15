@@ -1,0 +1,57 @@
+# goreleaser 配置 —— envonce
+# 文档: https://goreleaser.com
+# 本地验证（无需 git tag / GitHub 访问）:
+#   goreleaser release --snapshot --clean
+# 正式发布（打 tag 后由 CI 执行）:
+#   goreleaser release --clean
+
+version: 2
+
+project_name: envonce
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: envonce
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+    goarch:
+      - arm64
+      - amd64
+    main: ./cmd/envonce
+    binary: envonce
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+
+archives:
+  - id: default
+    formats:
+      - tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+    # 额外打包 LICENSE / README（缺失时 goreleaser 仅告警，不影响构建）
+    files:
+      - LICENSE*
+      - README*
+
+# 草稿发布：正式发布时由 CI 在打 tag 后触发，
+# 发布后手动填 Formula/envonce.rb 的占位符并推送到 homebrew-tap 仓库。
+release:
+  draft: true
+  # 不额外指定 github.owner/repo —— goreleaser 会从 git remote 自动推断。
+  # 若使用 GitHub，请在 CI 中设置 GH_REPO 环境变量或在此显式配置 owner/repo。
+
+# Homebrew tap 由独立仓库 homebrew-tap 维护（Formula/envonce.rb 模板已随本仓库提交），
+# 不在此处用 goreleaser 的 brews: 自动推送，避免覆盖人工维护的模板占位符。
+# 正式发布后流程: goreleaser 产出 tar.gz+checksums → 计算 sha256 →
+#   填入 Formula/envonce.rb 的 VERSION/ARM_SHA256/AMD_SHA256 → 推送到 homebrew-tap。
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  # 暂不自动生成 changelog；后续若启用 GitHub Releases 可改为按 commit 分类
+  disable: true

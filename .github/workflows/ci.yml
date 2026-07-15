@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+          cache: true
+
+      # Lint — focused, low-noise ruleset configured in .golangci.yml.
+      # golangci-lint runs govet, so a separate `go vet` step is not needed.
+      - name: Lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v2.x
+
+      # Cross-compile check: envonce is macOS-only (launchd/security), but CI
+      # runs on Linux. Ensure the real target platform (darwin) still compiles.
+      # Safe because the build is CGO_ENABLED=0 (pure Go).
+      - name: Build (darwin)
+        run: GOOS=darwin go build ./...
+
+      - name: Test
+        run: go test -race ./...

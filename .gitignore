@@ -1,0 +1,15 @@
+# superpowers SDD scratch (briefs/reports/ledger)
+.superpowers/
+docs/superpowers/
+
+# Go build output
+/envonce
+/dist/
+*.test
+*.out
+
+# goreleaser
+dist/
+
+# macOS
+.DS_Store

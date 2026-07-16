@@ -48,6 +48,8 @@ brew tap laidbackgeek/homebrew-tap
 brew install envonce
 ```
 
+> Newer Homebrew requires trusting third-party taps: if `brew install envonce` is refused with a `brew trust` prompt, run `brew trust laidbackgeek/tap` and retry.
+
 After installation, run `envonce init` as noted below.
 
 **go install (requires Go 1.21+ toolchain, suited for Go developers)**

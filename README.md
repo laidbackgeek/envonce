@@ -46,6 +46,8 @@ brew tap laidbackgeek/homebrew-tap
 brew install envonce
 ```
 
+> 新版 Homebrew 首次安装第三方 tap 会要求信任：若 `brew install envonce` 被拒绝并提示 `brew trust`，执行 `brew trust laidbackgeek/tap` 后重试即可。
+
 安装完成后，按说明提示执行 `envonce init`（见下文）。
 
 **go install（需 Go 1.21+ 工具链，适合 Go 开发者）**

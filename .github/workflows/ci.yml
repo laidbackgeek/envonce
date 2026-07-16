@@ -19,7 +19,7 @@ jobs:
       # Lint — focused, low-noise ruleset configured in .golangci.yml.
       # golangci-lint runs govet, so a separate `go vet` step is not needed.
       - name: Lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v9
         with:
           version: v2.12.2
 

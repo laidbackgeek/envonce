@@ -163,6 +163,25 @@ exec bash
 - [User guide (docs/usage.en.md)](docs/usage.en.md) — full brew-service takeover flow, shell integration, Keychain setup, multiple env groups
 - [Troubleshooting (docs/troubleshooting.en.md)](docs/troubleshooting.en.md) — fail-loud diagnostics, doctor interpretation, common conflicts
 
+## AI assistant skill
+
+This repo ships an [Agent Skill](https://code.claude.com/docs/en/skills) at [`skills/envonce/`](skills/envonce/SKILL.md) so AI coding assistants (Claude Code, etc.) drive envonce correctly — above all, avoiding `brew services`, which would invalidate envonce-managed env vars.
+
+To install it globally (so it works from any directory), link the folder into Claude Code's skills directory. Run this from the repo root:
+
+```bash
+mkdir -p ~/.claude/skills
+ln -s "$(pwd)/skills/envonce" ~/.claude/skills/envonce
+```
+
+Prefer a copy over a symlink?
+
+```bash
+cp -r skills/envonce ~/.claude/skills/envonce
+```
+
+Then start a new Claude Code session to load the skill.
+
 ## License
 
 MIT

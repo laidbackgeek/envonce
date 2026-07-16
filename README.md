@@ -159,6 +159,25 @@ exec bash
 - [用户指南（docs/usage.md）](docs/usage.md) —— 接管 brew 服务完整流程、shell 集成、KeyChain 设置、多组 env
 - [故障排查（docs/troubleshooting.md）](docs/troubleshooting.md) —— fail-loud 诊断、doctor 解读、常见冲突
 
+## AI 助手 Skill
+
+仓库内 [`skills/envonce/`](skills/envonce/SKILL.md) 提供了一个 [Agent Skill](https://code.claude.com/docs/en/skills)，让 Claude Code 等 AI 编码助手正确使用 envonce——尤其是避免误用 `brew services` 而让 envonce 维护的环境变量失效。
+
+全局安装（之后在任意目录都生效）——在仓库根目录下执行，把该目录软链到 Claude Code 的 skills 目录：
+
+```bash
+mkdir -p ~/.claude/skills
+ln -s "$(pwd)/skills/envonce" ~/.claude/skills/envonce
+```
+
+不想用软链，也可以直接拷贝：
+
+```bash
+cp -r skills/envonce ~/.claude/skills/envonce
+```
+
+之后新开一个 Claude Code 会话即可加载该 skill。
+
 ## 许可
 
 MIT

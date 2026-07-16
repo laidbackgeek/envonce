@@ -21,7 +21,7 @@ jobs:
       - name: Lint
         uses: golangci/golangci-lint-action@v6
         with:
-          version: v2.x
+          version: v2.12.2
 
       # Cross-compile check: envonce is macOS-only (launchd/security), but CI
       # runs on Linux. Ensure the real target platform (darwin) still compiles.

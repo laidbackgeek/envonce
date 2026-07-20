@@ -236,6 +236,12 @@ keep_alive = true
 run_at_load = true
 ```
 
+> Each `args` element is shell-quoted word-by-word into the wrapper: an arg containing spaces/special characters is injected into the `exec` line as a **single word** and is never split. Typical case — wrapping a version-manager (fnm/nvm/asdf) binary in a login shell:
+> ```toml
+> args = ["-l", "-c", "exec my-app serve --host 127.0.0.1 --port 31171"]
+> ```
+> That long `-c` command is **one** array element, producing `exec /bin/zsh -l -c 'exec my-app serve --host 127.0.0.1 --port 31171' "$@"`. Changing `args` likewise requires `sync`.
+
 Then regenerate the wrapper (group changes require sync):
 
 ```bash

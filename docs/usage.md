@@ -236,6 +236,12 @@ keep_alive = true
 run_at_load = true
 ```
 
+> `args` 的每个元素在写进 wrapper 时都会按 POSIX sh 做 word 级转义：含空格/特殊字符的 arg 会作为**单个 word** 注入 `exec` 行、不会被拆散。典型场景——用登录 shell 包一层版本管理器（fnm/nvm/asdf）下的二进制：
+> ```toml
+> args = ["-l", "-c", "exec my-app serve --host 127.0.0.1 --port 31171"]
+> ```
+> 该 `-c` 后的长命令是**一个**数组元素，会生成 `exec /bin/zsh -l -c 'exec my-app serve --host 127.0.0.1 --port 31171' "$@"`。改 `args` 同样需要 `sync`。
+
 然后重生 wrapper（分组变了需要 sync）：
 
 ```bash

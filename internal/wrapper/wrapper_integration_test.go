@@ -68,3 +68,32 @@ func TestIntegration_Success_RunsService(t *testing.T) {
 	assert.NoError(t, err, "wrapper must exit 0 on success; output: %s", out)
 	assert.Contains(t, string(out), "svc got WRAPPER_TEST=ok")
 }
+
+// TestIntegration_MultiWordArgSurvivesWordSplit proves the shell-quoting fix
+// end-to-end. The service is `/bin/sh -c 'echo hello world'`: the multi-word arg
+// must reach sh as a single word, so it prints `hello world`.
+//
+// On the OLD (broken) wrapper the arg was joined with bare spaces, producing
+// `exec /bin/sh -c echo hello world "$@"`. sh then treats only `echo` as the -c
+// command (no args → empty line) and `hello`/`world` as positional params, so
+// nothing is printed → this assertion fails. It passes once each word is quoted.
+func TestIntegration_MultiWordArgSurvivesWordSplit(t *testing.T) {
+	dir := t.TempDir()
+
+	// trivial exporter that always succeeds
+	exporterPath := filepath.Join(dir, "fake-export.sh")
+	assert.NoError(t, os.WriteFile(exporterPath, []byte("#!/bin/sh\nprintf 'export X=1\\n'\n"), 0o755))
+
+	wrapperPath := filepath.Join(dir, "q.wrapper.sh")
+	content := Generate(WrapperData{
+		EnvonceBin:  exporterPath,
+		ServiceName: "q",
+		Binary:      "/bin/sh",
+		Args:        []string{"-c", "echo hello world"},
+	})
+	assert.NoError(t, os.WriteFile(wrapperPath, []byte(content), 0o755))
+
+	out, err := execShell(wrapperPath).CombinedOutput()
+	assert.NoError(t, err, "wrapper must exit 0; output: %s", out)
+	assert.Contains(t, string(out), "hello world")
+}

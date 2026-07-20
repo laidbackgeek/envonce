@@ -69,10 +69,12 @@ const (
 	DoctorMsgXDGDrift           = "doctor_msg_xdg_drift"
 
 	// —— status labels (service status / list) ——
-	StatusRunning   = "status_running"
-	StatusNotLoaded = "status_not_loaded"
-	EnvParseWarn    = "env_parse_warn" // %v
-	EnvParseOK      = "env_parse_ok"
+	StatusRunning          = "status_running"           // %d (pid)
+	StatusNotLoaded        = "status_not_loaded"
+	StatusLoadedNotRunning = "status_loaded_not_running"
+	StatusCrashed          = "status_crashed" // %s exit code, %d runs, %s service name
+	EnvParseWarn           = "env_parse_warn" // %v
+	EnvParseOK             = "env_parse_ok"
 
 	// —— cli error messages ——
 	ErrUnknownService  = "err_unknown_service" // %s
@@ -169,10 +171,12 @@ var catalog = map[string]map[Lang]string{
 	DoctorMsgXDGDrift:           {ZH: "XDG 配置目录漂移：.initialized 记录 %s，当前 %s", EN: "XDG config dir drift: .initialized recorded %s, current %s"},
 
 	// —— status labels (service status / list) ——
-	StatusRunning:   {ZH: "运行中", EN: "Running"},
-	StatusNotLoaded: {ZH: "未加载", EN: "Not loaded"},
-	EnvParseWarn:    {ZH: "⚠ env 解析告警: %v", EN: "⚠ env parse warning: %v"},
-	EnvParseOK:      {ZH: "✓ env 解析正常", EN: "✓ env parse OK"},
+	StatusRunning:          {ZH: "运行中 (pid=%d)", EN: "Running (pid=%d)"},
+	StatusNotLoaded:        {ZH: "未加载", EN: "Not loaded"},
+	StatusLoadedNotRunning: {ZH: "已加载但未运行", EN: "Loaded, not running"},
+	StatusCrashed:          {ZH: "⚠ 进程已退出 (exit code=%s)，launchd 已重启 %d 次——疑似 crash-loop，见 logs/%s.err.log", EN: "⚠ process exited (code=%s), restarted %d time(s) — likely crash-loop, see logs/%s.err.log"},
+	EnvParseWarn:           {ZH: "⚠ env 解析告警: %v", EN: "⚠ env parse warning: %v"},
+	EnvParseOK:             {ZH: "✓ env 解析正常", EN: "✓ env parse OK"},
 
 	// —— cli error messages ——
 	ErrUnknownService:  {ZH: "未知服务 %s", EN: "Unknown service: %s"},

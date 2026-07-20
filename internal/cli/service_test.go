@@ -8,18 +8,31 @@ import (
 	"testing"
 
 	"github.com/laidbackgeek/envonce/internal/brew"
+	"github.com/laidbackgeek/envonce/internal/launchd"
 	"github.com/laidbackgeek/envonce/internal/paths"
 	"github.com/stretchr/testify/assert"
 )
 
 // fakeLaunchd replaces real launchctl calls so tests don't touch the system launchd.
-type fakeLaunchd struct{ loaded map[string]bool }
+type fakeLaunchd struct {
+	loaded  map[string]bool
+	inspect map[string]launchd.StatusInfo // optional per-label override; when unset, Inspect derives a Running/Unloaded state from loaded
+}
 
-func (f *fakeLaunchd) Bootstrap(p string) error       { return nil }
-func (f *fakeLaunchd) Bootout(l string) error         { f.loaded[l] = false; return nil }
-func (f *fakeLaunchd) IsLoaded(l string) bool         { return f.loaded[l] }
+func (f *fakeLaunchd) Bootstrap(p string) error { return nil }
+func (f *fakeLaunchd) Bootout(l string) error   { f.loaded[l] = false; return nil }
+func (f *fakeLaunchd) IsLoaded(l string) bool   { return f.loaded[l] }
 func (f *fakeLaunchd) Print(l string) (string, error) { return "", nil }
-func (f *fakeLaunchd) LabelFor(n string) string       { return "com.envonce." + n }
+func (f *fakeLaunchd) Inspect(l string) (launchd.StatusInfo, error) {
+	if info, ok := f.inspect[l]; ok {
+		return info, nil
+	}
+	if f.loaded[l] {
+		return launchd.StatusInfo{Loaded: true, PID: 1, LastExit: launchd.LastExitNever}, nil
+	}
+	return launchd.StatusInfo{Loaded: false}, nil
+}
+func (f *fakeLaunchd) LabelFor(n string) string { return "com.envonce." + n }
 
 func TestServiceAdd_SyncGenerates(t *testing.T) {
 	setupHome(t)
@@ -95,6 +108,58 @@ func TestServiceStatus_PrintsLabel(t *testing.T) {
 	assert.NoError(t, root.Execute())
 	assert.Contains(t, out.String(), "myapp")
 	assert.Contains(t, out.String(), "Running")
+}
+
+// TestServiceStatus_CrashedShowsHint is the regression test for the false-Positive
+// "Running": a loaded job whose wrapper dies on every launch (no live pid, non-zero
+// last exit) must NOT be reported as Running — it must show "Loaded, not running"
+// plus a crash-loop hint, instead of the old load-state-only label.
+func TestServiceStatus_CrashedShowsHint(t *testing.T) {
+	setupHome(t)
+	fl := &fakeLaunchd{loaded: map[string]bool{}, inspect: map[string]launchd.StatusInfo{}}
+	addService(t, fl, "myapp")
+	lbl := fl.LabelFor("myapp")
+	fl.loaded[lbl] = true
+	fl.inspect[lbl] = launchd.StatusInfo{Loaded: true, PID: 0, LastExit: "1", Runs: 7}
+
+	out := &bytes.Buffer{}
+	root := newRootCmd(deps{launchd: fl, brew: brew.New()})
+	root.SetOut(out)
+	root.SetArgs([]string{"--lang", "en", "service", "status", "myapp"})
+	assert.NoError(t, root.Execute())
+	body := out.String()
+	assert.Contains(t, body, "Loaded, not running", "crash-loop must not be reported as Running")
+	assert.NotContains(t, body, "Running (pid=")
+	assert.Contains(t, body, "crash-loop")
+	assert.Contains(t, body, "restarted 7")
+}
+
+func TestServiceStatus_RunningShowsPid(t *testing.T) {
+	setupHome(t)
+	fl := &fakeLaunchd{loaded: map[string]bool{}}
+	addService(t, fl, "myapp")
+	fl.loaded[fl.LabelFor("myapp")] = true
+
+	out := &bytes.Buffer{}
+	root := newRootCmd(deps{launchd: fl, brew: brew.New()})
+	root.SetOut(out)
+	root.SetArgs([]string{"--lang", "en", "service", "status", "myapp"})
+	assert.NoError(t, root.Execute())
+	assert.Contains(t, out.String(), "Running (pid=")
+}
+
+func TestServiceStatus_NotLoaded(t *testing.T) {
+	setupHome(t)
+	fl := &fakeLaunchd{loaded: map[string]bool{}}
+	addService(t, fl, "myapp")
+	// service exists in config but is not loaded into launchd
+
+	out := &bytes.Buffer{}
+	root := newRootCmd(deps{launchd: fl, brew: brew.New()})
+	root.SetOut(out)
+	root.SetArgs([]string{"--lang", "en", "service", "status", "myapp"})
+	assert.NoError(t, root.Execute())
+	assert.Contains(t, out.String(), "Not loaded")
 }
 
 func TestServiceSync_Regenerates(t *testing.T) {

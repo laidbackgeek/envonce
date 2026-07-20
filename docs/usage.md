@@ -86,7 +86,13 @@ envonce service take ollama
 envonce service status ollama
 ```
 
-输出加载状态 + env 解析健康检查（确认 `OLLAMA_MODELS` 能正确解析）。
+输出**进程级探活状态** + env 解析健康检查（确认 `OLLAMA_MODELS` 能正确解析）：
+
+- **运行中 (pid=N)** —— 已加载且目标进程存活（pid 取自 `launchctl print`）。
+- **已加载但未运行** —— 已加载但无活进程；若上次退出码非 0，会附 `⚠ ... restarted N time(s) — likely crash-loop` 并指向 `logs/<svc>.err.log`（wrapper 秒退时就是这种，以前会被误报为「运行中」）。
+- **未加载** —— 未 bootload 到 launchd。
+
+> 这是进程存活探活，不只看 launchd 加载态——所以「loaded 但进程反复死」的 crash-loop 不会再被误报为「运行中」。`service list` 同样按这三态显示。
 
 **用 launchctl 直接核对**
 

@@ -47,7 +47,14 @@ Error: env.d:3: invalid line "..." (missing '=')
 
 ### Crash-loop under KeepAlive
 
-If the service has `keep_alive = true` (the default), a resolution-failure `exit 1` causes launchd to retry repeatedly on its `ThrottleInterval` (10 seconds by default). Failure messages accumulate in `.err.log`, and `envonce service status` shows signs of repeated restarts.
+If the service has `keep_alive = true` (the default), a resolution-failure `exit 1` causes launchd to retry repeatedly on its `ThrottleInterval` (10 seconds by default). Failure messages accumulate in `.err.log`, and `envonce service status` now reports the crash-loop directly:
+
+```
+ollama: Loaded, not running
+⚠ process exited (code=1), restarted 3 time(s) — likely crash-loop, see logs/ollama.err.log
+```
+
+status no longer misreports this as "Running" — it distinguishes three states: **Running (pid=N)** (process genuinely alive) / **Loaded, not running** (with the crash-loop hint above) / **Not loaded**. When you see the crash-loop hint, follow the steps below to stop the bleeding and read `.err.log`.
 
 **Stop the bleeding temporarily**:
 

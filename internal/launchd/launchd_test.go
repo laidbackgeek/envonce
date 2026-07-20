@@ -178,3 +178,76 @@ func TestBootout_RetriesExhausted(t *testing.T) {
 	assert.Error(t, s.Bootout("com.envonce.x"))
 	assert.Len(t, f.calls, bootoutMaxAttempts, "should retry up to the limit then return the error")
 }
+
+// realPrint is a trimmed slice of `launchctl print gui/$UID/com.envonce.X` output,
+// kept as a fixture for ParseStatus tests.
+const realPrint = `	program = /Users/x/.config/envonce/services/x.wrapper.sh
+	program arguments = {
+	}
+	state = running
+	pid = 3030
+	last exit code = (never exited)
+	runs = 1
+	environment = {
+		SSH_AUTH_SOCK => /var/run/...
+		PATH => /usr/bin:/bin
+	}
+		state = active
+`
+
+func TestParseStatus_Running(t *testing.T) {
+	info := ParseStatus([]byte(realPrint))
+	assert.Equal(t, 3030, info.PID)
+	assert.Equal(t, LastExitNever, info.LastExit)
+	assert.Equal(t, 1, info.Runs)
+	info.Loaded = true
+	assert.Equal(t, LivenessRunning, info.Liveness())
+}
+
+func TestParseStatus_NestedStateIgnored(t *testing.T) {
+	// the per-spawn "state = active" lines under environment must not be parsed
+	// as fields; only pid / last exit code / runs are read.
+	info := ParseStatus([]byte(realPrint))
+	assert.Equal(t, 3030, info.PID, "pid parsed from top-level, nested state ignored")
+}
+
+func TestParseStatus_Crashed(t *testing.T) {
+	info := ParseStatus([]byte("\tpid = 0\n\tlast exit code = 126\n\truns = 7\n"))
+	info.Loaded = true
+	assert.Equal(t, LivenessCrashed, info.Liveness(), "non-zero exit + no pid = crash-loop")
+	assert.Equal(t, 7, info.Runs)
+}
+
+func TestParseStatus_CleanExitIsIdle(t *testing.T) {
+	info := ParseStatus([]byte("\tlast exit code = 0\n\truns = 1\n"))
+	info.Loaded = true
+	assert.Equal(t, LivenessIdle, info.Liveness(), "exit 0 is a clean exit, not crashed")
+}
+
+func TestParseStatus_NeverExitedIsIdle(t *testing.T) {
+	info := ParseStatus([]byte("\tlast exit code = (never exited)\n\truns = 0\n"))
+	info.Loaded = true
+	assert.Equal(t, LivenessIdle, info.Liveness())
+}
+
+func TestInspect_Loaded(t *testing.T) {
+	f := &fakeRunner{outs: map[string][]byte{
+		"launchctl print gui/501/com.envonce.x": []byte("\tpid = 42\n\tlast exit code = (never exited)\n\truns = 1\n"),
+	}}
+	s := &Service{runner: f, uid: 501}
+	info, err := s.Inspect("com.envonce.x")
+	assert.NoError(t, err)
+	assert.True(t, info.Loaded)
+	assert.Equal(t, 42, info.PID)
+	assert.Equal(t, LivenessRunning, info.Liveness())
+	assert.Equal(t, []string{"launchctl", "print", "gui/501/com.envonce.x"}, f.calls[0])
+}
+
+func TestInspect_NotLoaded(t *testing.T) {
+	f := &fakeRunner{errs: map[string]error{"launchctl print gui/501/com.envonce.x": exitErr(3)}}
+	s := &Service{runner: f, uid: 501}
+	info, err := s.Inspect("com.envonce.x")
+	assert.Error(t, err)
+	assert.False(t, info.Loaded)
+	assert.Equal(t, LivenessUnloaded, info.Liveness())
+}

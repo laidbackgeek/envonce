@@ -9,6 +9,7 @@ import (
 	"github.com/laidbackgeek/envonce/internal/config"
 	"github.com/laidbackgeek/envonce/internal/env"
 	"github.com/laidbackgeek/envonce/internal/i18n"
+	"github.com/laidbackgeek/envonce/internal/launchd"
 	"github.com/laidbackgeek/envonce/internal/paths"
 	"github.com/laidbackgeek/envonce/internal/plist"
 	"github.com/laidbackgeek/envonce/internal/wrapper"
@@ -24,6 +25,7 @@ type LaunchdClient interface {
 	Bootout(label string) error
 	IsLoaded(label string) bool
 	Print(label string) (string, error)
+	Inspect(label string) (launchd.StatusInfo, error)
 	LabelFor(name string) string
 }
 
@@ -33,8 +35,9 @@ type realLaunchdClient struct{}
 func (realLaunchdClient) Bootstrap(p string) error       { return ldBootstrap(p) }
 func (realLaunchdClient) Bootout(l string) error         { return ldBootout(l) }
 func (realLaunchdClient) IsLoaded(l string) bool         { return ldIsLoaded(l) }
-func (realLaunchdClient) Print(l string) (string, error) { return ldPrint(l) }
-func (realLaunchdClient) LabelFor(n string) string       { return ldLabelFor(n) }
+func (realLaunchdClient) Print(l string) (string, error)               { return ldPrint(l) }
+func (realLaunchdClient) Inspect(l string) (launchd.StatusInfo, error) { return ldInspect(l) }
+func (realLaunchdClient) LabelFor(n string) string                     { return ldLabelFor(n) }
 
 // selfBinPath returns the absolute path of the current executable, written into the wrapper's ENVONCE=.
 func selfBinPath() string {
@@ -134,12 +137,21 @@ func syncService(lc LaunchdClient, name string, bootstrap bool) error {
 	return nil
 }
 
-// statusLabel maps the launchd load state to a localized status label (for service status / list output).
-func statusLabel(loaded bool) string {
-	if loaded {
-		return T.T(i18n.StatusRunning)
+// renderLiveness maps a service's launchd liveness to a localized status label and
+// an optional follow-up diagnostic line (e.g. a crash-loop hint). It replaces the
+// old load-state-only label, which reported a crash-looping job (loaded, but its
+// wrapper dies on every launch) as "Running".
+func renderLiveness(info launchd.StatusInfo, name string) (label, detail string) {
+	switch info.Liveness() {
+	case launchd.LivenessRunning:
+		return T.T(i18n.StatusRunning, info.PID), ""
+	case launchd.LivenessCrashed:
+		return T.T(i18n.StatusLoadedNotRunning), T.T(i18n.StatusCrashed, info.LastExit, info.Runs, name)
+	case launchd.LivenessIdle:
+		return T.T(i18n.StatusLoadedNotRunning), ""
+	default: // LivenessUnloaded
+		return T.T(i18n.StatusNotLoaded), ""
 	}
-	return T.T(i18n.StatusNotLoaded)
 }
 
 // NewServiceCmd builds the service-management command group: add/start/stop/restart/status/sync/list/take/drop.
@@ -272,8 +284,12 @@ func serviceStatusCmd(lc LaunchdClient) *cobra.Command {
 		Args:        cobra.ExactArgs(1),
 		RunE: func(c *cobra.Command, a []string) error {
 			label := lc.LabelFor(a[0])
-			loaded := lc.IsLoaded(label)
-			fmt.Fprintf(c.OutOrStdout(), "%s: %s\n", a[0], statusLabel(loaded))
+			info, _ := lc.Inspect(label)
+			lbl, detail := renderLiveness(info, a[0])
+			fmt.Fprintf(c.OutOrStdout(), "%s: %s\n", a[0], lbl)
+			if detail != "" {
+				fmt.Fprintf(c.OutOrStdout(), "%s\n", detail)
+			}
 			// env health check: can we resolve export lines for this service?
 			cfg, err := loadCfg()
 			if err != nil {
@@ -308,8 +324,9 @@ func serviceListCmd(lc LaunchdClient) *cobra.Command {
 			}
 			sort.Strings(names)
 			for _, name := range names {
-				label := lc.LabelFor(name)
-				fmt.Fprintf(c.OutOrStdout(), "%s\t%s\n", name, statusLabel(lc.IsLoaded(label)))
+				info, _ := lc.Inspect(lc.LabelFor(name))
+				lbl, _ := renderLiveness(info, name)
+				fmt.Fprintf(c.OutOrStdout(), "%s\t%s\n", name, lbl)
 			}
 			fmt.Fprintf(c.OutOrStdout(), "%s\n", T.T(i18n.SummarySvcListRelated))
 			return nil

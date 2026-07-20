@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/laidbackgeek/envonce/internal/i18n"
+	"github.com/laidbackgeek/envonce/internal/launchd"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 )
@@ -32,15 +33,23 @@ func TestApplyI18n_Idempotent(t *testing.T) {
 	assert.NotEqual(t, zhSub, sub.Short)
 }
 
-// TestStatusLabel_LangSwitch verifies that the status labels in service status/list switch with the language.
-func TestStatusLabel_LangSwitch(t *testing.T) {
+// TestRenderLiveness_LangSwitch verifies that the status labels produced by
+// renderLiveness (used by service status/list) switch with the language.
+func TestRenderLiveness_LangSwitch(t *testing.T) {
 	t.Cleanup(func() { T = i18n.New(i18n.EN) })
 
+	running := launchd.StatusInfo{Loaded: true, PID: 1, LastExit: launchd.LastExitNever}
+	unloaded := launchd.StatusInfo{Loaded: false}
+
 	T = i18n.New(i18n.ZH)
-	assert.Equal(t, "运行中", statusLabel(true))
-	assert.Equal(t, "未加载", statusLabel(false))
+	zhRun, _ := renderLiveness(running, "x")
+	zhUnloaded, _ := renderLiveness(unloaded, "x")
+	assert.Equal(t, "运行中 (pid=1)", zhRun)
+	assert.Equal(t, "未加载", zhUnloaded)
 
 	T = i18n.New(i18n.EN)
-	assert.Equal(t, "Running", statusLabel(true))
-	assert.Equal(t, "Not loaded", statusLabel(false))
+	enRun, _ := renderLiveness(running, "x")
+	enUnloaded, _ := renderLiveness(unloaded, "x")
+	assert.Equal(t, "Running (pid=1)", enRun)
+	assert.Equal(t, "Not loaded", enUnloaded)
 }

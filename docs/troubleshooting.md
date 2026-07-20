@@ -47,7 +47,14 @@ Error: env.d:3: invalid line "..." (missing '=')
 
 ### KeepAlive 下的 crash-loop
 
-若服务 `keep_alive = true`（默认），解析失败导致 `exit 1` 后，launchd 会按 `ThrottleInterval`（默认 10 秒）反复重试。失败信息会在 `.err.log` 累积，`envonce service status` 能看到反复重启的迹象。
+若服务 `keep_alive = true`（默认），解析失败导致 `exit 1` 后，launchd 会按 `ThrottleInterval`（默认 10 秒）反复重试。失败信息会在 `.err.log` 累积，`envonce service status` 也会直接报告 crash-loop：
+
+```
+ollama: 已加载但未运行
+⚠ 进程已退出 (exit code=1)，launchd 已重启 3 次——疑似 crash-loop，见 logs/ollama.err.log
+```
+
+此时 status 不再误报「运行中」——它区分三态：**运行中 (pid=N)**（进程真存活）/ **已加载但未运行**（含上面的 crash-loop 提示）/ **未加载**。看到 crash-loop 提示就照下面的步骤止血、看 `.err.log`。
 
 **临时止血**：
 

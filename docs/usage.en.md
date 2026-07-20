@@ -86,7 +86,13 @@ This single command does 7 things:
 envonce service status ollama
 ```
 
-Outputs the load state + an env-resolution health check (confirms `OLLAMA_MODELS` resolves correctly).
+Outputs a **process-level liveness state** + an env-resolution health check (confirms `OLLAMA_MODELS` resolves correctly):
+
+- **Running (pid=N)** — loaded and the target process is alive (pid taken from `launchctl print`).
+- **Loaded, not running** — loaded but no live process; if the last exit code was non-zero it adds `⚠ ... restarted N time(s) — likely crash-loop` pointing at `logs/<svc>.err.log` (this is what a wrapper that dies on launch looks like — previously misreported as "Running").
+- **Not loaded** — not bootloaded into launchd.
+
+> This is a live-process probe, not just the launchd load state — so a crash-loop (loaded, but the process keeps dying) is no longer misreported as "Running". `service list` shows the same three states.
 
 **Cross-check directly with launchctl**
 

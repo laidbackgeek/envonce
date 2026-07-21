@@ -18,9 +18,9 @@
 class Envonce < Formula
   desc "统一管理 shell 与 launchd 服务的环境变量"
   homepage "https://github.com/laidbackgeek/envonce"
-  url "https://github.com/laidbackgeek/envonce/archive/refs/tags/v1.0.0.tar.gz"
-  sha256 "SOURCE_SHA256"
-  version "1.0.0"
+  url "https://github.com/laidbackgeek/envonce/archive/refs/tags/v1.0.1.tar.gz"
+  sha256 "b4cd3c1d1b72746d04c48c898fdc151da8d3bb7ed318015fa3e414ea367b5a44"
+  version "1.0.1"
   license "MIT"
   head "https://github.com/laidbackgeek/envonce.git", branch: "main"
 
